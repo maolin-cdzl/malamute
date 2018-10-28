@@ -1696,7 +1696,6 @@ mlm_client_connected (mlm_client_t *self)
     int connected;
 	char* reply = NULL;
     zsock_send (self->actor, "s", "$CONNECTED");
-    zsock_recv (self->actor, "i", &connected);
 
     while (!zsys_interrupted) {
 		reply = zstr_recv(self->actor);
