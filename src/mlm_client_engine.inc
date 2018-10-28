@@ -1391,7 +1391,7 @@ s_client_handle_cmdpipe (zloop_t *loop, zsock_t *reader, void *argument)
         self->terminated = true;    //  Shutdown the engine
     else
     if (streq (method, "$CONNECTED"))
-        zsock_send (self->cmdpipe, "i", self->connected);
+        zsock_send (self->cmdpipe, "si","CONNECTED", self->connected);
     else
     if (streq (method, "SET VERBOSE"))
         zsock_recv (self->cmdpipe, "i", &self->verbose);
@@ -1694,8 +1694,23 @@ mlm_client_connected (mlm_client_t *self)
 {
     assert (self);
     int connected;
+	char* reply = NULL;
     zsock_send (self->actor, "s", "$CONNECTED");
     zsock_recv (self->actor, "i", &connected);
+
+    while (!zsys_interrupted) {
+		reply = zstr_recv(self->actor);
+		if( !reply )
+			break;
+		if( streq(reply,"CONNECTED") ) {
+			zsock_recv(self->actor,"i",&connected);
+			zstr_free(&reply);
+			break;
+		} else {
+			zstr_free(&reply);
+			zsock_flush(self->actor);
+		}
+	}
     return connected == 1;
 }
 
