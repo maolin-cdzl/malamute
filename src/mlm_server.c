@@ -654,7 +654,7 @@ check_for_mailbox_messages (client_t *self)
         //  can send mlm_msg_t's all over the place
         zsock_recv (self->server->mailbox, "p", &self->msg);
         if (self->msg)
-            engine_set_next_event (self, mailbox_message_event);
+            engine_set_next_event (self, eponymous_mailbox_message_event);
     }
 }
 
