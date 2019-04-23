@@ -23,6 +23,9 @@
 #undef NDEBUG
 #endif
 
+#include <time.h>
+#include <sys/time.h>
+
 #define ZPROTO_UNUSED(object) (void)object
 
 //  ---------------------------------------------------------------------------
@@ -55,7 +58,8 @@ typedef enum {
     mailbox_message_event = 15,
     service_message_event = 16,
     expired_event = 17,
-    exception_event = 18
+    exception_event = 18,
+	eponymous_mailbox_message_event = 19		// add by maolin,20190416
 } event_t;
 
 //  Names for state machine logging and error reporting
@@ -87,7 +91,8 @@ s_event_name [] = {
     "mailbox_message",
     "service_message",
     "expired",
-    "exception"
+    "exception",
+	"eponymous_mailbox_message"
 };
 
 //  ---------------------------------------------------------------------------
@@ -651,15 +656,33 @@ s_client_execute (s_client_t *self, event_t event)
                         mlm_proto_set_routing_id (self->server->message, self->routing_id);
                         mlm_proto_send (self->server->message, self->server->router);
                     }
+                    if (!self->exception)
+                        self->state = connected_state;
+                }
+				else
+				if (self->event == eponymous_mailbox_message_event) {
+                    if (!self->exception) {
+                        //  get message to deliver
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ get message to deliver", self->log_prefix);
+                        get_message_to_deliver (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send MAILBOX_DELIVER
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send MAILBOX_DELIVER",
+                                self->log_prefix);
+                        mlm_proto_set_id (self->server->message, MLM_PROTO_MAILBOX_DELIVER);
+                        mlm_proto_set_routing_id (self->server->message, self->routing_id);
+                        mlm_proto_send (self->server->message, self->server->router);
+                    }
                     if (!self->exception) {
                         //  check for mailbox messages
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ check for mailbox messages", self->log_prefix);
                         check_for_mailbox_messages (&self->client);
                     }
-                    if (!self->exception)
-                        self->state = connected_state;
-                }
+				}
                 else
                 if (self->event == service_message_event) {
                     if (!self->exception) {
@@ -959,15 +982,33 @@ s_client_execute (s_client_t *self, event_t event)
                         mlm_proto_set_routing_id (self->server->message, self->routing_id);
                         mlm_proto_send (self->server->message, self->server->router);
                     }
+                    if (!self->exception)
+                        self->state = connected_state;
+                }
+				else
+				if (self->event == eponymous_mailbox_message_event) {
+                    if (!self->exception) {
+                        //  get message to deliver
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ get message to deliver", self->log_prefix);
+                        get_message_to_deliver (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send MAILBOX_DELIVER
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send MAILBOX_DELIVER",
+                                self->log_prefix);
+                        mlm_proto_set_id (self->server->message, MLM_PROTO_MAILBOX_DELIVER);
+                        mlm_proto_set_routing_id (self->server->message, self->routing_id);
+                        mlm_proto_send (self->server->message, self->server->router);
+                    }
                     if (!self->exception) {
                         //  check for mailbox messages
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ check for mailbox messages", self->log_prefix);
                         check_for_mailbox_messages (&self->client);
                     }
-                    if (!self->exception)
-                        self->state = connected_state;
-                }
+				}
                 else
                 if (self->event == service_message_event) {
                     if (!self->exception) {
@@ -1144,15 +1185,33 @@ s_client_execute (s_client_t *self, event_t event)
                         mlm_proto_set_routing_id (self->server->message, self->routing_id);
                         mlm_proto_send (self->server->message, self->server->router);
                     }
+                    if (!self->exception)
+                        self->state = connected_state;
+                }
+				else
+				if (self->event == eponymous_mailbox_message_event) {
+                    if (!self->exception) {
+                        //  get message to deliver
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ get message to deliver", self->log_prefix);
+                        get_message_to_deliver (&self->client);
+                    }
+                    if (!self->exception) {
+                        //  send MAILBOX_DELIVER
+                        if (self->server->verbose)
+                            zsys_debug ("%s:         $ send MAILBOX_DELIVER",
+                                self->log_prefix);
+                        mlm_proto_set_id (self->server->message, MLM_PROTO_MAILBOX_DELIVER);
+                        mlm_proto_set_routing_id (self->server->message, self->routing_id);
+                        mlm_proto_send (self->server->message, self->server->router);
+                    }
                     if (!self->exception) {
                         //  check for mailbox messages
                         if (self->server->verbose)
                             zsys_debug ("%s:         $ check for mailbox messages", self->log_prefix);
                         check_for_mailbox_messages (&self->client);
                     }
-                    if (!self->exception)
-                        self->state = connected_state;
-                }
+				}
                 else
                 if (self->event == service_message_event) {
                     if (!self->exception) {
@@ -1279,9 +1338,10 @@ s_client_execute (s_client_t *self, event_t event)
             break;
         }
         else
-        if (self->server->verbose)
+        if (self->server->verbose) {
             zsys_debug ("%s:         > %s",
                 self->log_prefix, s_state_name [self->state]);
+		}
     }
 }
 
@@ -1542,6 +1602,8 @@ s_server_handle_protocol (zloop_t *loop, zsock_t *reader, void *argument)
         if (rc == -1)
             return -1;      //  Interrupted; exit zloop
 
+//		clock_gettime(CLOCK_MONOTONIC,&tv_start);
+//		msg_type = (int) mlm_proto_id(self->message);
 
         //  TODO: use binary hashing on routing_id
         char *hashkey = zframe_strhex (mlm_proto_routing_id (self->message));

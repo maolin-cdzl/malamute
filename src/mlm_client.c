@@ -191,6 +191,10 @@ use_connect_timeout (client_t *self)
 static void
 client_is_connected (client_t *self)
 {
+	if( !((s_client_t *) self)->connected ) {
+		int connected = 1;
+		zsock_send(self->cmdpipe,"si","CONNECTED",connected);
+	}
     engine_set_connected (self, true);
     //  We send a PING to the server on every heartbeat
     engine_set_heartbeat (self, self->heartbeat_timer);
@@ -206,6 +210,10 @@ client_is_connected (client_t *self)
 static void
 server_has_gone_offline (client_t *self)
 {
+	if( ((s_client_t *) self)->connected ) {
+		int connected = 0;
+		zsock_send(self->cmdpipe,"si","CONNECTED",connected);
+	}
     //  We stop the heartbeats and thereby stop sending a PING to the server
     //  periodically
     engine_set_heartbeat (self, 0);
