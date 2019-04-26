@@ -111,6 +111,51 @@ struct _client_t {
     mlm_msg_t *msg;             //  Message structure
 };
 
+
+// -----------------------------------------------------------------------------
+// Cluster class define
+//
+
+typedef struct {
+    char *pattern;              //  Regular pattern to match on
+    zrex_t *rex;                //  Expression, compiled as a zrex object
+	cluster_server_t*	server;	// Offering remote server
+	size_t			weight;		// weight
+} cluster_offer_t;
+
+typedef struct {
+	char*		name;
+	zlistx_t*	offers;
+} cluster_service_t;
+
+typedef struct {
+	char*		pattern;
+	zrex_t*		rex;
+	cluster_server_t*	server;
+} cluster_sub_t;
+
+typedef struct {
+	char*		name;
+	zlistx_t*	subs;
+} cluster_stream_t;
+
+typedef struct {
+	char*				address;
+	cluster_server_t*	server;
+} cluster_client_t;
+
+typedef struct {
+	char*		endpoint;
+	zsock_t*	dealer;
+} cluster_server_t;
+
+struct _cluster_t {
+	zhashx_t*	servers;		// Hold cluster_server_t by endpoint
+	zhashx_t*	clients;		// Hold cluster client by address
+	zhashx_t*	services;		// Hold service by name
+	zhashx_t*	streams;		// Hold stream by name
+};
+
 //  Include the generated server engine
 #include "mlm_server_engine.inc"
 
